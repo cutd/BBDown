@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Net.Http.Headers;
 using static BBDown.Core.Logger;
@@ -52,6 +52,22 @@ namespace BBDown.Core.Util
             string htmlCode = await webResponse.Content.ReadAsStringAsync();
             LogDebug("Response: {0}", htmlCode);
             return htmlCode;
+        }
+
+        // 重写重定向处理, 自动跟随多次重定向
+        public static async Task<string> GetWebLocationAsync(string url)
+        {
+            using var webRequest = new HttpRequestMessage(HttpMethod.Head, url);
+            webRequest.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
+            webRequest.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+            webRequest.Headers.CacheControl = CacheControlHeaderValue.Parse("no-cache");
+            webRequest.Headers.Connection.Clear();
+
+            LogDebug("获取网页重定向地址: Url: {0}, Headers: {1}", url, webRequest.Headers);
+            var webResponse = (await AppHttpClient.SendAsync(webRequest, HttpCompletionOption.ResponseHeadersRead)).EnsureSuccessStatusCode();
+            string location = webResponse.RequestMessage.RequestUri.AbsoluteUri;
+            LogDebug("Location: {0}", location);
+            return location;
         }
 
         public static async Task<string> GetPostResponseAsync(string Url, byte[] postData)
